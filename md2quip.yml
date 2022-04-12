@@ -1,0 +1,8 @@
+# quip_thread_id is the root folder we start populating documents at
+quip_thread_id: "JGMmOeQyhKz7"
+
+# unused, so far
+site_name: md2quip
+quip_root: https://mccartney.quip.com/JGMmOeQyhKz7/Mccartney
+repo_url: https://github.com/simonmcc/md2quip
+repo_name: simonmcc/md2quip
