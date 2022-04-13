@@ -14,7 +14,7 @@ def configure(ctx, param, filename):
     try:
         with open(filename, 'r') as f:
             options = yaml.safe_load(f)
-            print(f"options from file = {options}")
+            # print(f"options from file = {options}")
     except KeyError:
         options = {}
     ctx.default_map = options
@@ -25,7 +25,8 @@ def configure(ctx, param, filename):
 CONTEXT_SETTINGS = dict(auto_envvar_prefix='MD2QUIP')
 
 
-@click.command(context_settings=CONTEXT_SETTINGS)
+@click.group(invoke_without_command=True, context_settings=CONTEXT_SETTINGS)
+@click.version_option()
 @click.option(
     '-c',
     '--config',
@@ -38,26 +39,61 @@ CONTEXT_SETTINGS = dict(auto_envvar_prefix='MD2QUIP')
     show_default=True,
 )
 @click.option('--debug/--no-debug')
-@click.option('--path', default='.', type=click.Path(exists=True))
 @click.option('--quip-thread-id', required=True)
 @click.option('--quip-api-base-url', default='https://platform.quip.com')
 @click.option('--quip-api-access-token', required=True)
-@click.option('--publish-at-root', default=False)
-def main(debug, path, quip_thread_id, quip_api_base_url, quip_api_access_token, publish_at_root):
-    """Main entrypoint."""
+@click.pass_context
+# def cli(ctx, debug, quip_thread_id, quip_api_base_url, quip_api_access_token):
+def cli(ctx, **kwargs):
     click.echo("md2quip")
     click.echo("=" * len("md2quip"))
     click.echo("Mark Down to Quip - publish your docs to Quip")
-    click.echo("TODO")
-    click.echo(f"Debug mode is {'on' if debug else 'off'}")
-    click.echo(f"path is {path}")
-    click.echo(f"quip_thread_id is {quip_thread_id}")
-    click.echo(f"quip_api_base_url is {quip_api_base_url}")
 
-    foo = md2quip.md2quip(
-        path, quip_thread_id, quip_api_base_url, quip_api_access_token, publish_at_root=publish_at_root
-    )
-    foo._descend_into_folder(thread_id=quip_thread_id, depth=1)
-    # files = foo.find_files()
-    # click.echo(f"find_files() = {files}")
-    # foo.publish(files)
+    # ensure that ctx.obj exists and is a dict (in case `cli()` is called
+    # by means other than the `if __name__ == '__main__':` block below.
+    ctx.ensure_object(dict)
+
+    # shove all of the global options into the ctx so that sub-commands
+    # have easy access to them
+    for k, v in kwargs.items():
+        ctx.obj[k] = v
+
+
+@cli.command(context_settings=CONTEXT_SETTINGS)
+@click.pass_context
+def find_folders(ctx):
+    # TODO: Should we just create a single md2quip object for the group in cli()?
+    foo = md2quip.md2quip(ctx.obj.get('quip_api_base_url'), ctx.obj.get('quip_api_access_token'))
+    foo.show_folders(thread_id=ctx.obj.get('quip_thread_id'), depth=1)
+
+
+@cli.command(context_settings=CONTEXT_SETTINGS)
+@click.pass_context
+def find_folders_and_docs(ctx):
+    # TODO: Should we just create a single md2quip object for the group in cli()?
+    foo = md2quip.md2quip(ctx.obj.get('quip_api_base_url'), ctx.obj.get('quip_api_access_token'))
+    foo.show_folders_and_docs(thread_id=ctx.obj.get('quip_thread_id'), depth=1)
+
+
+@cli.command(context_settings=CONTEXT_SETTINGS)
+@click.pass_context
+def find_local_files(ctx, path='.'):
+    # TODO: Should we just create a single md2quip object for the group in cli()?
+    foo = md2quip.md2quip(ctx.obj.get('quip_api_base_url'), ctx.obj.get('quip_api_access_token'))
+    files = foo.find_files()
+    click.echo(f"find_files() = {files}")
+
+
+@cli.command(context_settings=CONTEXT_SETTINGS)
+@click.option('--path', default='.', type=click.Path(exists=True))
+@click.option('--publish-at-root', default=False)
+@click.pass_context
+def publish(ctx, path, publish_at_root):
+    click.echo(f"Debug mode is {'on' if ctx.obj['debug'] else 'off'}")
+    click.echo(f"path is {path}")
+
+    click.echo("TODO")
+
+
+if __name__ == '__main__':
+    cli(obj={})

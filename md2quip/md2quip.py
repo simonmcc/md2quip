@@ -5,7 +5,6 @@ import os
 import pprint
 import urllib.error
 
-import markdown2
 import quipclient  # https://github.com/quip/quip-api/issues/38
 
 
@@ -24,10 +23,7 @@ def _filter_paths(basename, path, is_dir, exclude):
 
 
 class md2quip(object):
-    def __init__(self, path, quip_thread_id, quip_api_base_url, quip_api_access_token, publish_at_root=False):
-        self.root_doc = markdown2.markdown("*boo!*")
-
-        self.quip_thread_id = quip_thread_id
+    def __init__(self, quip_api_base_url, quip_api_access_token):
         self.quip_api_base_url = quip_api_base_url
         self.quip_api_access_token = quip_api_access_token
 
@@ -68,6 +64,12 @@ class md2quip(object):
                 content = f.read()
                 thread = self.quip_client.new_document(content=content, format='markdown', member_ids=[root_folder_id])
                 print(f"Published {file} as {pprint.pformat(thread)}")
+
+    def show_folders(self, thread_id=None, folder_id=None, depth=0):
+        self._descend_into_folder(thread_id=thread_id, folder_id=folder_id, depth=depth, show_children=False)
+
+    def show_folders_and_docs(self, thread_id=None, folder_id=None, depth=0, show_children=True):
+        self._descend_into_folder(thread_id=None, folder_id=None, depth=0, show_children=False)
 
     def _descend_into_folder(self, thread_id=None, folder_id=None, depth=0, show_children=False):
         """folder_id & thread_id are not the same thing :("""
