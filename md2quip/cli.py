@@ -1,9 +1,20 @@
 """Console script for md2quip."""
 
+import logging
+
 import click
+import click_log
 import yaml
 
 from md2quip import md2quip
+
+logger = logging.getLogger(__name__)
+click_log.basic_config(logger)
+
+loggers = [logging.getLogger(name) for name in logging.root.manager.loggerDict]
+for logger in loggers:
+    click_log.basic_config(logger)
+
 
 # extend click so that we can load options from a yaml file
 # https://jwodder.github.io/kbits/posts/click-config/
@@ -38,12 +49,12 @@ CONTEXT_SETTINGS = dict(auto_envvar_prefix='MD2QUIP')
     help='Read option defaults from the specified YAML file',
     show_default=True,
 )
-@click.option('--debug/--no-debug')
-@click.option('--quip-thread-id', required=True)
+@click.option('--quip-root', required=True)
 @click.option('--quip-api-base-url', default='https://platform.quip.com')
 @click.option('--quip-api-access-token', required=True)
+@click_log.simple_verbosity_option(logger)
 @click.pass_context
-# def cli(ctx, debug, quip_thread_id, quip_api_base_url, quip_api_access_token):
+# def cli(ctx, quip_root, quip_api_base_url, quip_api_access_token):
 def cli(ctx, **kwargs):
     click.echo("md2quip")
     click.echo("=" * len("md2quip"))
@@ -56,31 +67,32 @@ def cli(ctx, **kwargs):
     # shove all of the global options into the ctx so that sub-commands
     # have easy access to them
     for k, v in kwargs.items():
+        logger.debug(f"{k}={v}")
         ctx.obj[k] = v
+
+    ctx.obj['md2quip'] = md2quip.md2quip(
+        quip_root=ctx.obj.get('quip_root'),
+        quip_api_base_url=ctx.obj.get('quip_api_base_url'),
+        quip_api_access_token=ctx.obj.get('quip_api_access_token'),
+    )
 
 
 @cli.command(context_settings=CONTEXT_SETTINGS)
 @click.pass_context
 def find_folders(ctx):
-    # TODO: Should we just create a single md2quip object for the group in cli()?
-    foo = md2quip.md2quip(ctx.obj.get('quip_api_base_url'), ctx.obj.get('quip_api_access_token'))
-    foo.show_folders(thread_id=ctx.obj.get('quip_thread_id'), depth=1)
+    ctx.obj['md2quip'].show_folders()
 
 
 @cli.command(context_settings=CONTEXT_SETTINGS)
 @click.pass_context
 def find_folders_and_docs(ctx):
-    # TODO: Should we just create a single md2quip object for the group in cli()?
-    foo = md2quip.md2quip(ctx.obj.get('quip_api_base_url'), ctx.obj.get('quip_api_access_token'))
-    foo.show_folders_and_docs(thread_id=ctx.obj.get('quip_thread_id'), depth=1)
+    ctx.obj['md2quip'].show_folders_and_docs()
 
 
 @cli.command(context_settings=CONTEXT_SETTINGS)
 @click.pass_context
 def find_local_files(ctx, path='.'):
-    # TODO: Should we just create a single md2quip object for the group in cli()?
-    foo = md2quip.md2quip(ctx.obj.get('quip_api_base_url'), ctx.obj.get('quip_api_access_token'))
-    files = foo.find_files()
+    files = ctx.obj['md2quip'].find_files()
     click.echo(f"find_files() = {files}")
 
 
@@ -92,7 +104,8 @@ def publish(ctx, path, publish_at_root):
     click.echo(f"Debug mode is {'on' if ctx.obj['debug'] else 'off'}")
     click.echo(f"path is {path}")
 
-    click.echo("TODO")
+    files = ctx.obj['md2quip'].find_files()
+    ctx.obj['md2quip'].publish(files, root_folder_id=ctx.obj.get('quip_thread_id'))
 
 
 if __name__ == '__main__':
